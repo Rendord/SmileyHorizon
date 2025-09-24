@@ -13,9 +13,17 @@ import plotly.graph_objects as go
 import pandas as pd
 import random
 import json
+from pathlib import Path
+import re
+import shutil
+
+def normalize_filename(name: str) -> str:
+    name = re.sub(r'[\\/:"*?<>|]+', "", name)
+    name = name.strip(" .")
+    return name if name else "untitled"
 
 # --- Config
-NUM_EXAMPLES = 2
+NUM_EXAMPLES = 10
 NUM_CLUSTERS = 40  
 MODEL = "mistral"  
 URL = "http://localhost:11434/api/generate"
@@ -29,14 +37,51 @@ emoji_names = []
 with open("input/emoji_names.txt", "r") as f:
     emoji_names = [line.strip().replace('-', ' ').lower() for line in f if line.strip()]
 
+#TODO!!!!! Finetune Transformers on Emoji dataset
 # --- Step 2: Embed the names
 model = SentenceTransformer("all-MiniLM-L6-v2")
 model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 embeddings = model.encode(emoji_names)
 
+
 # # --- Step 3: Cluster the embeddings
 # kmeans = KMeans(n_clusters=NUM_CLUSTERS, random_state=42)
 # labels = kmeans.fit_predict(embeddings)
+
+def calculate_cluster_separation_force():
+    for c_centroid in centroids:
+        for c_centroid_inner in centroids:
+            c_diff = c_centroid - c_centroid_inner
+            direction = normalized(c_centroid + c_diff)
+            force = c_centroid + (direction * scalar)
+            scalar is based on ratio to average distance
+
+        add force of each cluster together
+                
+        do this for each cluster
+
+        apply each force to each cluster
+            
+
+
+def get_cluster_vectors(cluster_id):
+    return list
+
+def calculate_closest_centroid(centroids:list, outlier):
+    if not centroids:
+        return None
+    closest =  0
+
+    return closest:
+
+
+def calculate_centroid(vectors:list):
+    if not vectors:
+        return None
+    sum_of_vectors = sum(v for v in vectors)
+    num_vectors = len(vectors)
+    centroid_vector = (1 / num_vectors) * sum_of_vectors
+    return centroid_vector
 
 # --- Step 3: Cluster the embeddings dynamically
 clusterer = hdbscan.HDBSCAN(min_cluster_size=5, min_samples=5, cluster_selection_epsilon=0, metric='euclidean')
@@ -59,7 +104,7 @@ def process_output(text):
 def get_random(list, size):
     return random.sample(list, min(len(list), size))
 
-
+#TODO implement alternative service for labeling?
 # --- Optional Step 5: Auto-label clusters using GPT
 def label_cluster(names):   
 
@@ -88,7 +133,7 @@ def label_cluster(names):
 
     return process_output(response.json()['response'])
 
-
+#TODO Implement more representative sampling, calculate cosine similarity between example and cluster?
 sampled_clusters = {
     cid: get_random(names, NUM_EXAMPLES)
     for cid, names in clusters.items()
@@ -101,25 +146,37 @@ cluster_labels = {
 
 top_picks = []
 
-# # --- Step 6: Print result
-# for cid, names in sampled_clusters.items():
-#     print(f"\n### Cluster {cid} ({cluster_labels.get(cid, 'Unknown')}):")
-#     print(", ".join(names))  # top 10 per cluster
-#     top_picks.extend(names)
+# --- Step 6: Print result
+for cid, names in sampled_clusters.items():
+    print(f"\n### Cluster {cid} ({cluster_labels.get(cid, 'Unknown')}):")
+    print(", ".join(names))  # top 10 per cluster
+    top_picks.extend(names)
 
-# --- Step 6: Print result with ALL entries in each cluster
-with open('output/top_picks_40_clusters.txt', 'w') as f:
+total_names = 0
+total_clusters = 0
+# --- Step 6: Write clusters to files and print them to terminal
+with open(f'output/top_picks_{str(NUM_CLUSTERS)}_clusters.txt', 'w') as f:
+    folder = Path(f'output/clusters_{str(NUM_CLUSTERS)}')
+    if folder.exists():
+        shutil.rmtree(folder)
+    folder.mkdir(parents=True, exist_ok=True)
     for cid, names in clusters.items():
-        print(f"\n### Cluster {cid} ({cluster_labels.get(cid, 'Unknown')}):")
+        total_clusters += 1
+        cluster_name = cluster_labels.get(cid, 'Unknown')
+        print(f"\n### Cluster {cid} ({cluster_name}):")
         print(", ".join(names))  # print all names in this cluster
 
-        # also write them to file
-        for name in names:
-            f.write(name + "\n")
+        file_path = folder / normalize_filename(f'cluster_{cluster_name}_{str(total_clusters)}.txt')
+        with open(file_path, 'w') as individual_cluster:
+            for name in names:
+                total_names += 1
+                individual_cluster.write(name + "\n")
 
-with open('output/top_picks_40_clusters.txt', 'w') as f:
-        f.writelines(name + "\n" for name in top_picks)
+    #write samples of clusters to file #TODO Why am I doing this?
+    f.writelines(name + "\n" for name in top_picks)     
 
+print("total_names: " + str(total_names))
+print("total_clusters: " + str(total_clusters))
 
 # Load the Dutch-to-emoji mapping
 with open('output/dutch_to_emoji.json', 'r', encoding='utf-8') as f:
