@@ -16,6 +16,7 @@ import json
 from pathlib import Path
 import re
 import shutil
+from dataclasses import dataclass
 
 def normalize_filename(name: str) -> str:
     name = re.sub(r'[\\/:"*?<>|]+', "", name)
@@ -33,6 +34,16 @@ rcParams['font.family'] = 'Apple Color Emoji'
 
 emoji_names = []
 
+@dataclass
+class Cluster:
+    datapoints: list
+    centroid: list
+
+@dataclass
+class ClusterForce:
+    cluster: object
+    force: list
+
 # --- Step 1: Load your emoji names
 with open("input/emoji_names.txt", "r") as f:
     emoji_names = [line.strip().replace('-', ' ').lower() for line in f if line.strip()]
@@ -48,21 +59,34 @@ embeddings = model.encode(emoji_names)
 # kmeans = KMeans(n_clusters=NUM_CLUSTERS, random_state=42)
 # labels = kmeans.fit_predict(embeddings)
 
-def calculate_cluster_separation_force():
-    for c_centroid in centroids:
-        for c_centroid_inner in centroids:
-            c_diff = c_centroid - c_centroid_inner
-            direction = normalized(c_centroid + c_diff)
-            force = c_centroid + (direction * scalar)
-            scalar is based on ratio to average distance
+def calculate_scalar(base_distance, centroid, clusters):
+    distances = []
+    for c in clusters:
+        diff_vector = centroid - c.centroid
+        distance = np.linalg.norm(diff_vector)
+        distances.append(distance)
+    avg_distance = sum(distances) / len(distances)
+    scalar = base_distance / avg_distance
+    return scalar
 
-        add force of each cluster together
-                
-        do this for each cluster
+def calculate_cluster_separation_force(centroid, clusters):
+    scalar = calculate_scalar(clusters)
+    total_force = np.array()
+    for c in clusters:
+        if c.centroid == centroid:
+            pass
+        else:
+            diff = centroid 
+            c_diff = centroid - c.centroid
+            normalized_diff = c_diff / np.linalg.norm(c_diff)
+            force = centroid + (normalized_diff * scalar)
+            total_force += force
+    return total_force
 
-        apply each force to each cluster
-            
-
+def seperate_clusters(clusters) -> None:
+    cluster_forces = [ClusterForce(cluster, calculate_cluster_separation_force(cluster, clusters)) for cluster in clusters]
+    for cf in cluster_forces:
+        cf.cluster += cf.force
 
 def get_cluster_vectors(cluster_id):
     return list
@@ -72,7 +96,7 @@ def calculate_closest_centroid(centroids:list, outlier):
         return None
     closest =  0
 
-    return closest:
+    return closest
 
 
 def calculate_centroid(vectors:list):
