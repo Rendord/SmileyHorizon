@@ -3,11 +3,11 @@
 ## Embedding and grouping Similar Names with Clustering
 
 **To run:**
-- install the requirements in a conda environment specifically*
-- run ollama on port 11434
-- activate the environment and run auto_label_clusters.py
+- create a Conda* environment using `environment.yml`
+- run Ollama on port `11434`
+- activate the environment and run `auto_label_clusters.py`
 
-*you'll most likely need conda for it's precompiled binaries YMMV
+*You'll most likely need Conda for its precompiled binaries (YMMV).
 
 ### Goal
 Group the embedding vectors so that emoji names with similar meanings are clustered together. This allows us to identify semantic categories and reduce redundancy in our dataset.
