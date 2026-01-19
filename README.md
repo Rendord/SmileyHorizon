@@ -1,6 +1,13 @@
 # Emoji Name Clustering for NLU Template Optimization
 
-## Grouping Similar Names with Clustering
+## Embedding and grouping Similar Names with Clustering
+
+**To run:**
+- install the requirements in a conda environment specifically*
+- run ollama on port 11434
+- activate the environment and run auto_label_clusters.py
+
+*you'll most likely need conda for it's precompiled binaries YMMV
 
 ### Goal
 Group the embedding vectors so that emoji names with similar meanings are clustered together. This allows us to identify semantic categories and reduce redundancy in our dataset.

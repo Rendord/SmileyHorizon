@@ -1,8 +1,10 @@
+from __future__ import annotations
 from sentence_transformers import SentenceTransformer
 from collections import defaultdict
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+
 #from sklearn.manifold import TSNE
 import umap
 import hdbscan
@@ -29,20 +31,44 @@ NUM_CLUSTERS = 40
 MODEL = "mistral"  
 URL = "http://localhost:11434/api/generate"
 
+# --- Cluster Distance Scaling
+BASE_DISTANCE = 1.0
+
 # Font Family for Plot:
 rcParams['font.family'] = 'Apple Color Emoji'
 
 emoji_names = []
 
+
 @dataclass
+class DataPoint:
+    emoji_name: str
+    vector: np.ndarray
+    cluster_id: int
+
 class Cluster:
     datapoints: list
     centroid: list
+    cluster_id: int
+
+    def __init__(self, datapoints: list[np.ndarray]):
+        self.datapoints = datapoints
+        self.centroid = calculate_centroid(datapoints)
+    
+    def update_centroid(self):
+        self.centroid = np.mean(self.datapoints, axis=0)
+
+    def __iadd__(self, force: ClusterForce):
+        self.centroid += force.force
+        self.datapoints = [dp + force.force for dp in self.datapoints]
+
+        return self
 
 @dataclass
 class ClusterForce:
-    cluster: object
-    force: list
+    cluster: Cluster
+    force: np.ndarray
+
 
 # --- Step 1: Load your emoji names
 with open("input/emoji_names.txt", "r") as f:
@@ -55,43 +81,42 @@ model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 embeddings = model.encode(emoji_names)
 
 
-# # --- Step 3: Cluster the embeddings
+# # --- Step 3: Cluster the embeddings -- KMeans Example (Deprecated)
 # kmeans = KMeans(n_clusters=NUM_CLUSTERS, random_state=42)
 # labels = kmeans.fit_predict(embeddings)
 
-def calculate_scalar(base_distance, centroid, clusters):
+def calculate_scalar(centroid: np.ndarray, clusters: list[Cluster]) -> float:
     distances = []
     for c in clusters:
         diff_vector = centroid - c.centroid
         distance = np.linalg.norm(diff_vector)
         distances.append(distance)
     avg_distance = sum(distances) / len(distances)
-    scalar = base_distance / avg_distance
+    scalar = BASE_DISTANCE / avg_distance
     return scalar
 
-def calculate_cluster_separation_force(centroid, clusters):
+def calculate_cluster_separation_force(centroid: np.ndarray, clusters: list[Cluster]) -> np.ndarray:
     scalar = calculate_scalar(clusters)
     total_force = np.array()
     for c in clusters:
         if c.centroid == centroid:
             pass
-        else:
-            diff = centroid 
+        else: 
             c_diff = centroid - c.centroid
             normalized_diff = c_diff / np.linalg.norm(c_diff)
             force = centroid + (normalized_diff * scalar)
             total_force += force
     return total_force
 
-def seperate_clusters(clusters) -> None:
-    cluster_forces = [ClusterForce(cluster, calculate_cluster_separation_force(cluster, clusters)) for cluster in clusters]
+def seperate_clusters(clusters: list[Cluster]) -> None:
+    cluster_forces = [ClusterForce(cluster, calculate_cluster_separation_force(cluster. centroid, clusters)) for cluster in clusters]
     for cf in cluster_forces:
         cf.cluster += cf.force
 
 def get_cluster_vectors(cluster_id):
     return list
 
-def calculate_closest_centroid(centroids:list, outlier):
+def calculate_closest_centroid(centroids: list, outlier):
     if not centroids:
         return None
     closest =  0
@@ -99,7 +124,7 @@ def calculate_closest_centroid(centroids:list, outlier):
     return closest
 
 
-def calculate_centroid(vectors:list):
+def calculate_centroid(vectors: list):
     if not vectors:
         return None
     sum_of_vectors = sum(v for v in vectors)
